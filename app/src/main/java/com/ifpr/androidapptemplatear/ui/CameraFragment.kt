@@ -2,11 +2,14 @@ package com.ifpr.androidapptemplatear.ui
 
 import androidx.fragment.app.Fragment
 import com.ifpr.androidapptemplatear.R
+import com.ifpr.androidapptemplatear.SoundPlayer
 import android.content.Context
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Bundle
+import android.view.GestureDetector
 import android.view.LayoutInflater
+import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
 import android.widget.Toast
@@ -35,6 +38,12 @@ class CameraFragment : Fragment() {
 
     private var currentModelFile: String = "neutrofilo.glb"
 
+    // ---- FASE 2: pontuação e som ----
+    private var pontos = 0
+    private var modeloColocado = false
+    private lateinit var somPlayer: SoundPlayer
+    // ---------------------------------
+
     private var _binding: FragmentCameraBinding? = null
 
     // This property is only valid between onCreateView and
@@ -47,6 +56,9 @@ class CameraFragment : Fragment() {
         savedInstanceState: Bundle?
     ): View {
         super.onCreate(savedInstanceState)
+
+        somPlayer = SoundPlayer(requireContext())
+
         sharedViewModel = ViewModelProvider(requireActivity())[SharedModelViewModel::class.java]
         sharedViewModel.selectedModel.observe(viewLifecycleOwner) { path ->
             loadModel(path)
@@ -55,8 +67,24 @@ class CameraFragment : Fragment() {
         val view = inflater.inflate(R.layout.fragment_camera, container, false)
 
         sceneView = view.findViewById<ArSceneView?>(R.id.sceneView).apply {
-            lightEstimationMode = Config.LightEstimationMode.DISABLED
+            lightEstimationMode = Config.LightEstimationMode.ENVIRONMENTAL_HDR
         }
+
+        // ---- FASE 2: detectar toque na tela ----
+        val gestureDetector = GestureDetector(
+            requireContext(),
+            object : GestureDetector.SimpleOnGestureListener() {
+                override fun onSingleTapConfirmed(e: MotionEvent): Boolean {
+                    registrarToque()
+                    return false
+                }
+            }
+        )
+        sceneView.setOnTouchListener { _, event ->
+            gestureDetector.onTouchEvent(event)
+            false // false = não bloqueia os gestos normais do SceneView
+        }
+        // ----------------------------------------
 
         placeButton = view.findViewById(R.id.place)
 
@@ -69,6 +97,7 @@ class CameraFragment : Fragment() {
 
     override fun onDestroyView() {
         super.onDestroyView()
+        somPlayer.liberar()
         _binding = null
     }
 
@@ -83,8 +112,24 @@ class CameraFragment : Fragment() {
         modelNode.isEditable = true
         modelNode.isScaleEditable = false
 
+        modeloColocado = true
+
         sceneView.planeRenderer.isVisible = false
     }
+
+    // ---- FASE 2: "Toque para encontrar" (+10 pontos) ----
+    private fun registrarToque() {
+        if (!modeloColocado) return
+
+        pontos += 10
+        somPlayer.tocarParaModelo(currentModelFile)
+        Toast.makeText(
+            requireContext(),
+            "Encontrou! Pontos: $pontos",
+            Toast.LENGTH_SHORT
+        ).show()
+    }
+    // -----------------------------------------------------
 
     private fun checkCameraPermission() {
         if (ContextCompat.checkSelfPermission(requireContext(), android.Manifest.permission.CAMERA)
@@ -124,11 +169,15 @@ class CameraFragment : Fragment() {
 
         }
 
+        // FASE 2: guarda o modelo atual e reinicia o estado
+        currentModelFile = fileName
+        modeloColocado = false
+
         modelNode = ArModelNode(sceneView.engine, PlacementMode.INSTANT).apply {
             loadModelGlbAsync(
                 glbFileLocation = getFilePath(requireContext(),fileName),
-                centerOrigin = Position(0f,0f,1f),
-
+                scaleToUnits = 0.4f,
+                centerOrigin = Position(0f, -1f, 0f),
             ) {
                 sceneView.planeRenderer.isVisible = true
             }
