@@ -31,6 +31,7 @@ import com.google.ar.core.HitResult
 import com.google.ar.core.Plane
 import com.google.ar.core.TrackingState
 import com.ifpr.androidapptemplatear.R
+import com.ifpr.androidapptemplatear.jogo.Partida
 import io.github.sceneview.SceneView
 import io.github.sceneview.ar.ARSceneView
 import io.github.sceneview.ar.node.AnchorNode
@@ -92,6 +93,7 @@ class CameraFragment : Fragment() {
     private var currentModelFile = "neutrofilo.glb"
 
     private lateinit var sharedViewModel: SharedModelViewModel
+    private lateinit var jogoViewModel: JogoViewModel
 
     private val permissionLauncher =
         registerForActivityResult(
@@ -166,9 +168,26 @@ class CameraFragment : Fragment() {
 
         val parent = container?.parent as? ViewGroup
 
+        jogoViewModel =
+            ViewModelProvider(requireActivity())[
+                JogoViewModel::class.java
+            ]
+
         if (parent != null) {
-            localizacaoController.conectar(parent) { arquivo ->
-                sharedViewModel.selectModel(arquivo)
+            localizacaoController.conectar(parent) { ponto ->
+                val novo = jogoViewModel.registrarDescoberta(ponto)
+
+                sharedViewModel.selectModel(ponto.modelo)
+
+                if (novo) {
+                    statusText?.text =
+                        "+${Partida.PONTOS_POR_DESCOBERTA} pontos! " +
+                                "Você encontrou: ${ponto.nome}"
+                }
+            }
+
+            jogoViewModel.placar.observe(viewLifecycleOwner) { placar ->
+                localizacaoController.exibirPlacar(placar)
             }
 
             placeButton?.bringToFront()

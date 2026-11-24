@@ -27,6 +27,8 @@ import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.lifecycleScope
+import com.ifpr.androidapptemplatear.jogo.PontoTuristico
+import com.ifpr.androidapptemplatear.jogo.PontosTuristicos
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -38,57 +40,29 @@ class LocalizacaoController(
     private val fragment: Fragment
 ) : DefaultLifecycleObserver, LocationListener {
 
-    private data class Lugar(
-        val latitude: Double,
-        val longitude: Double
-    )
-
     companion object {
-        private const val RAIO_ENTRADA = 100f
-
-        // Evita novos sorteios por pequenas oscilações do GPS.
-        private const val RAIO_SAIDA = 125f
+        // Margem extra para sair do ponto; evita repetições por oscilação do GPS.
+        private const val MARGEM_SAIDA = 25f
 
         private const val PRECISAO_MAXIMA = 50f
         private const val INTERVALO_ENDERECO = 30_000L
         private const val IDADE_MAXIMA_LOCALIZACAO = 30_000L
     }
 
-    /*
-     * Coordenadas de referência dos pontos de encontro.
-     * O raio é calculado a partir de cada coordenada.
-     */
-    private val lugares = listOf(
-        // Catedral Sant'Ana
-        Lugar(
-            latitude = -25.097922,
-            longitude = -50.159264
-        ),
-
-        // Igreja dos Polacos
-        Lugar(
-            latitude = -25.094904,
-            longitude = -50.163075
-        ),
-
-        // Parque Estadual de Vila Velha
-        Lugar(
-            latitude = -25.246243,
-            longitude = -50.021782
-        )
-    )
+    /** Pontos turísticos definidos em [PontosTuristicos]. */
+    private val lugares = PontosTuristicos.lista
 
     private var manager: LocationManager? = null
     private var owner: LifecycleOwner? = null
 
     private var camada: FrameLayout? = null
     private var enderecoView: TextView? = null
+    private var placarView: TextView? = null
     private var botao: Button? = null
 
-    private var aoEncontrarModelo: ((String) -> Unit)? = null
+    private var aoEncontrarPonto: ((PontoTuristico) -> Unit)? = null
 
-    private var modelos: List<String> = emptyList()
-    private var lugarAtual: Lugar? = null
+    private var lugarAtual: PontoTuristico? = null
 
     private var monitorando = false
     private var enderecoAtual: String? = null
@@ -116,7 +90,7 @@ class LocalizacaoController(
 
     fun conectar(
         parent: ViewGroup,
-        aoEncontrar: (String) -> Unit
+        aoEncontrar: (PontoTuristico) -> Unit
     ) {
         check(owner == null) {
             "O controlador já está conectado a uma tela."
@@ -125,20 +99,11 @@ class LocalizacaoController(
         val context = fragment.requireContext()
 
         owner = fragment.viewLifecycleOwner
-        aoEncontrarModelo = aoEncontrar
+        aoEncontrarPonto = aoEncontrar
 
         manager = context.getSystemService(
             Context.LOCATION_SERVICE
         ) as LocationManager
-
-        modelos = runCatching {
-            context.assets.list("")
-                ?.filter { arquivo ->
-                    arquivo.endsWith(".glb", ignoreCase = true)
-                }
-                ?.sorted()
-                ?: emptyList()
-        }.getOrDefault(emptyList())
 
         criarPainel(parent)
 
@@ -166,6 +131,13 @@ class LocalizacaoController(
             )
         }
 
+        placarView = TextView(context).apply {
+            text = "Pontuação: 0"
+            textSize = 16f
+            setTypeface(typeface, android.graphics.Typeface.BOLD)
+            setTextColor(Color.rgb(255, 214, 79))
+        }
+
         enderecoView = TextView(context).apply {
             text = "Ative a localização para exibir o endereço atual."
             textSize = 14f
@@ -189,6 +161,7 @@ class LocalizacaoController(
             }
         }
 
+        painel.addView(placarView)
         painel.addView(enderecoView)
         painel.addView(botao)
 
@@ -255,9 +228,10 @@ class LocalizacaoController(
 
         camada = null
         enderecoView = null
+        placarView = null
         botao = null
 
-        aoEncontrarModelo = null
+        aoEncontrarPonto = null
         manager = null
         this.owner = null
 
@@ -383,7 +357,7 @@ class LocalizacaoController(
         // O endereço é atualizado independentemente dos encontros.
         atualizarEndereco(location)
 
-        // Exige maior precisão para detectar o raio de 100 metros.
+        // Exige boa precisão para detectar o raio de cada ponto.
         if (
             !location.hasAccuracy() ||
             location.accuracy > PRECISAO_MAXIMA
@@ -399,8 +373,8 @@ class LocalizacaoController(
      */
     private fun verificarLugares(location: Location) {
         lugarAtual?.let { lugar ->
-            // Mantém o mesmo encontro enquanto não sair dos 125 m.
-            if (distancia(location, lugar) <= RAIO_SAIDA) {
+            // Mantém o mesmo encontro enquanto não sair do raio + margem.
+            if (distancia(location, lugar) <= lugar.raioMetros + MARGEM_SAIDA) {
                 return
             }
 
@@ -409,24 +383,28 @@ class LocalizacaoController(
 
         val lugarEncontrado = lugares
             .filter { lugar ->
-                distancia(location, lugar) <= RAIO_ENTRADA
+                distancia(location, lugar) <= lugar.raioMetros
             }
             .minByOrNull { lugar ->
                 distancia(location, lugar)
             }
             ?: return
 
-        if (modelos.isEmpty()) return
-
         lugarAtual = lugarEncontrado
 
-        // Não exibe mensagens sobre o objeto ou o local.
-        aoEncontrarModelo?.invoke(modelos.random())
+        aoEncontrarPonto?.invoke(lugarEncontrado)
+    }
+
+    /** Atualiza a linha de pontuação do painel. */
+    fun exibirPlacar(placar: Placar) {
+        placarView?.text =
+            "Pontuação: ${placar.pontuacao}  •  " +
+                    "Locais: ${placar.encontrados}/${placar.total}"
     }
 
     private fun distancia(
         location: Location,
-        lugar: Lugar
+        lugar: PontoTuristico
     ): Float {
         val resultado = FloatArray(1)
 
