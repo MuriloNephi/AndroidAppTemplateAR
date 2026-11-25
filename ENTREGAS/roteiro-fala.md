@@ -6,7 +6,7 @@ Slides: [`apresentacao-jogo-ar.pptx`](apresentacao-jogo-ar.pptx). Tempo total: c
 
 ## Slide 1 — Capa (~30 s)
 
-> Olá, eu sou [SEU NOME] e vou apresentar o **Hide and Seek**, um jogo de esconde-esconde em Realidade Aumentada para Android. A ideia é simples: um jogador esconde um camaleão virtual na imagem da câmera, pinta ele para se disfarçar e passa o celular para o amigo do lado, que tem que encontrá-lo. Vou mostrar como se joga, os objetos 3D, a pontuação, a condição de derrota e, no final, um vídeo do jogo rodando.
+> Olá, eu sou Murilo Néfi de Faria e vou apresentar o **Hide and Seek**, um jogo de esconde-esconde em Realidade Aumentada para Android. A ideia é simples: um jogador esconde um camaleão virtual na imagem da câmera, pinta ele para se disfarçar e passa o celular para o amigo do lado, que tem que encontrá-lo. Vou mostrar como se joga, os objetos 3D, a pontuação, a condição de derrota e, no final, um vídeo do jogo rodando.
 
 ## Slide 2 — Objetivo e como jogar (~50 s)
 

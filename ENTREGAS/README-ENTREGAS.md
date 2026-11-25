@@ -18,7 +18,7 @@ Legenda: [x] pronto · [ ] depende de mim (print ou vídeo)
 
 ## Atividade 3 — Slides
 
-- [x] Arquivo .pptx (pronto): [`ENTREGAS/apresentacao-jogo-ar.pptx`](https://github.com/MuriloNephi/AndroidAppTemplateAR/blob/feature-game-over/ENTREGAS/apresentacao-jogo-ar.pptx). Falta trocar `[SEU NOME]` no slide 1 e inserir as imagens dos 4 objetos 3D no slide 3
+- [x] Arquivo .pptx (pronto): [`ENTREGAS/apresentacao-jogo-ar.pptx`](https://github.com/MuriloNephi/AndroidAppTemplateAR/blob/feature-game-over/ENTREGAS/apresentacao-jogo-ar.pptx), com nome do aluno, imagens dos 4 objetos 3D e vídeo no slide 6
 - [x] Vídeo de 30 s ou mais (31 s): [`videos/demo-30s.mp4`](https://github.com/MuriloNephi/AndroidAppTemplateAR/blob/feature-game-over/videos/demo-30s.mp4), já inserido no slide 6 do .pptx
 - [ ] Link público da apresentação → **EU preciso** subir no Google Apresentações e compartilhar (o vídeo precisa ser inserido de novo lá, a partir do Drive ou YouTube)
 - [x] Roteiro de fala (pronto): [`ENTREGAS/roteiro-fala.md`](https://github.com/MuriloNephi/AndroidAppTemplateAR/blob/feature-game-over/ENTREGAS/roteiro-fala.md)
