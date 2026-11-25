@@ -1,5 +1,7 @@
 # Atividade 2 — Game Over
 
+Jogo: **Hide and Seek**, um esconde-esconde com o camaleão em Realidade Aumentada.
+
 ## Link da branch
 
 https://github.com/MuriloNephi/AndroidAppTemplateAR/tree/feature-game-over
@@ -8,32 +10,28 @@ Commits desta atividade (em cima da `feature-location-score`):
 
 | Commit | Descrição |
 |--------|-----------|
-| [8b3ef05](https://github.com/MuriloNephi/AndroidAppTemplateAR/commit/8b3ef0533309c8ab848748c016806bd1a2beeee4) | adiciona vidas, cronômetro e condição de derrota |
-| [b8d465e](https://github.com/MuriloNephi/AndroidAppTemplateAR/commit/b8d465e40a2944d1e7f66c5db65dcc7dc4f6e289) | exibe tela de game over e botão jogar novamente |
+| [d20c98d](https://github.com/MuriloNephi/AndroidAppTemplateAR/commit/d20c98db785800aca684f71f1613bf67b3449525) | adiciona chances de quem procura e condição de derrota |
+| [4506aa5](https://github.com/MuriloNephi/AndroidAppTemplateAR/commit/4506aa5108aba3bc65bddb98abf1ed5a142ceee5) | exibe tela de game over e botão jogar novamente |
+
+> Os commits anteriores desta branch com uma regra de cronômetro foram desfeitos com `git revert`, porque não correspondiam ao jogo.
 
 ## Regra de derrota
 
-> Defini a derrota por tempo com vidas. O jogador começa com **3 vidas** e tem **3 minutos** para encontrar um ponto turístico **novo**. Se o cronômetro chegar a zero antes disso, ele perde 1 vida e o cronômetro recomeça. Encontrar um ponto novo também recomeça o cronômetro. Quando as vidas chegam a **0**, a partida termina. **Para dar Game Over basta ficar 3 rodadas seguidas (9 minutos) sem encontrar nenhum ponto novo.**
+> No Hide and Seek, um jogador esconde e pinta o camaleão e o outro procura tocando na tela. Quem procura tem **3 chances** por rodada (os corações na HUD). Cada toque **fora** do camaleão tira uma chance. Se ele achar o camaleão, ganha 10 pontos, os papéis se invertem e as chances voltam a 3 na rodada seguinte. Se as chances chegarem a **0**, a partida termina. **Para dar Game Over basta, na vez de procurar, tocar 3 vezes em lugares onde o camaleão não está.**
 >
-> No Game Over o jogo para o cronômetro, a pontuação, o GPS, a sessão de realidade aumentada, a câmera e o modelo 3D. Em seguida mostra uma tela com o motivo ("O tempo acabou antes de você encontrar um novo ponto turístico e suas vidas chegaram a zero."), a pontuação final e os locais encontrados. O botão **Jogar novamente** zera vidas, pontuação, locais encontrados e cronômetro, volta ao modelo inicial e reabre a sessão AR.
->
-> Durante o jogo, a HUD mostra a pontuação, os locais (ex.: 2/7), as vidas (♥♥♡) e o tempo restante.
+> No Game Over o jogo encerra a partida: para o GPS, a sessão de realidade aumentada, a câmera, o personagem e os toques, e não soma mais pontos. Aparece uma tela com o motivo (ex.: "O Jogador 2 tocou fora do personagem 3 vezes e ficou sem chances."), o placar final dos dois jogadores e o vencedor. O botão **Jogar novamente** zera pontos, chances, papéis e locais visitados, volta ao camaleão original e reabre a sessão AR.
 
-Detalhes técnicos:
-- Os valores ficam em constantes de `Partida.kt`: `VIDAS_INICIAIS = 3`, `TEMPO_POR_RODADA_MS = 3 min` e `PONTOS_POR_DESCOBERTA = 10`.
-- O cronômetro pausa quando a tela do jogo não está visível (outra aba ou app em segundo plano).
-- Ao encontrar todos os pontos, o cronômetro para (objetivo concluído).
+O valor fica na constante `CHANCES_POR_RODADA = 3`, em `Partida.kt`.
 
 ## Roteiro do vídeo curto — `videos/game-over.mp4`
 
-Arquivo: [`videos/game-over.mp4`](../videos/game-over.mp4)
+Arquivo: [`videos/game-over.mp4`](../videos/game-over.mp4). Duração sugerida: 30 a 45 s.
 
-> A derrota leva 9 minutos de jogo. Sugestão: grave tudo, sem sair do app, e depois corte ou acelere o trecho de espera no editor. Não troque de aba nem bloqueie a tela, porque isso pausa o cronômetro.
+1. **(0–8 s) Esconder:** com o Jogador 1, aponte para o chão, toque em **Posicionar**, escolha uma cor na paleta (ex.: verde) e toque em **Pronto! Passar o celular**.
+2. **(8–12 s) Passar o celular:** mostre a tela "Passe o celular para o Jogador 2" e toque em **Começar a procurar**. A HUD mostra `Chances: ♥♥♥`.
+3. **(12–18 s) Errar uma vez:** toque longe do camaleão. Aparece "Errou! … Restam 2 chance(s)." e a HUD fica com `♥♥♡`.
+4. **(18–22 s) Errar de novo:** a HUD fica com `♥♡♡`.
+5. **(22–30 s) Game Over:** toque fora pela terceira vez. Aparece a tela **GAME OVER** com o motivo, o placar e o vencedor. A câmera/AR para.
+6. **(30–35 s) Reinício:** toque em **Jogar novamente**. A HUD volta a `J1: 0 pts • J2: 0 pts`, "Jogador 1 esconde", e a câmera/AR é reaberta.
 
-1. **(0–5 s)** Abra o app. Mostre a HUD com `Pontuação: 0`, `Vidas: ♥♥♥` e `Tempo: 3:00` contando, e o endereço atual.
-2. **(acelerado)** Deixe o tempo correr até zerar. Mostre a mensagem "O tempo acabou! Você perdeu uma vida. Restam 2." e a HUD com `♥♥♡` e o tempo de volta em 3:00.
-3. **(acelerado)** Repita até a HUD mostrar `♥♡♡`.
-4. **(tempo real, ~10 s)** Mostre o último minuto até o tempo zerar. Aparece a tela **GAME OVER** com o motivo e a pontuação final. Mostre que a câmera/AR parou.
-5. **(~5 s)** Toque em **Jogar novamente**. Mostre a HUD de volta a `Pontuação: 0`, `Vidas: ♥♥♥`, `Tempo: 3:00` e a câmera/AR reaberta.
-
-Dica: se der para encontrar um ponto turístico antes (ex.: perto da Catedral), mostre a pontuação subindo para 10. Assim a tela de Game Over exibe uma pontuação final diferente de zero.
+Dica: para o placar final não ficar zerado, jogue antes uma rodada em que o Jogador 2 acha o camaleão (+10).
