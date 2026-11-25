@@ -27,6 +27,7 @@ import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.lifecycleScope
+import com.ifpr.androidapptemplatear.jogo.Fase
 import com.ifpr.androidapptemplatear.jogo.PontoTuristico
 import com.ifpr.androidapptemplatear.jogo.PontosTuristicos
 import kotlinx.coroutines.CancellationException
@@ -132,7 +133,7 @@ class LocalizacaoController(
         }
 
         placarView = TextView(context).apply {
-            text = "Pontuação: 0"
+            text = "J1: 0 pts  •  J2: 0 pts"
             textSize = 16f
             setTypeface(typeface, android.graphics.Typeface.BOLD)
             setTextColor(Color.rgb(255, 214, 79))
@@ -395,11 +396,18 @@ class LocalizacaoController(
         aoEncontrarPonto?.invoke(lugarEncontrado)
     }
 
-    /** Atualiza a linha de pontuação do painel. */
+    /** Atualiza a HUD: pontos de cada jogador, vez e locais visitados. */
     fun exibirPlacar(placar: Placar) {
+        val vez = when (placar.fase) {
+            Fase.ESCONDENDO -> "Jogador ${placar.escondedor} esconde"
+            Fase.PROCURANDO -> "Jogador ${placar.procurador} procura"
+        }
+
         placarView?.text =
-            "Pontuação: ${placar.pontuacao}  •  " +
-                    "Locais: ${placar.encontrados}/${placar.total}"
+            "J1: ${placar.pontosJogador1} pts  •  " +
+                    "J2: ${placar.pontosJogador2} pts\n" +
+                    "Rodada ${placar.rodada}: $vez  •  " +
+                    "Locais: ${placar.locaisVisitados}/${placar.totalLocais}"
     }
 
     private fun distancia(
