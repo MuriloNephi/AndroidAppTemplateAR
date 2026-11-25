@@ -18,8 +18,17 @@ data class Placar(
     val procurador: Int,
     val rodada: Int,
     val locaisVisitados: Int,
-    val totalLocais: Int
-)
+    val totalLocais: Int,
+    /** Chances restantes de quem procura. */
+    val chances: Int,
+    /** Número (1 ou 2) de quem perdeu; null enquanto a partida segue. */
+    val perdedor: Int?,
+    /** Número (1 ou 2) de quem tem mais pontos; null se empatado. */
+    val vencedor: Int?
+) {
+    val gameOver: Boolean
+        get() = perdedor != null
+}
 
 /**
  * Mantém a partida viva enquanto a Activity existir
@@ -27,7 +36,7 @@ data class Placar(
  */
 class JogoViewModel : ViewModel() {
 
-    private val partida = Partida()
+    private var partida = Partida()
 
     private val _placar = MutableLiveData(criarPlacar())
     val placar: LiveData<Placar> = _placar
@@ -45,6 +54,12 @@ class JogoViewModel : ViewModel() {
     fun registrarVisita(ponto: PontoTuristico): Boolean =
         partida.registrarVisita(ponto.id).also { publicar() }
 
+    /** Nova partida: zera pontos, chances, locais e papéis. */
+    fun reiniciar() {
+        partida = Partida()
+        publicar()
+    }
+
     private fun publicar() {
         _placar.value = criarPlacar()
     }
@@ -57,6 +72,9 @@ class JogoViewModel : ViewModel() {
         procurador = partida.procurador + 1,
         rodada = partida.rodada,
         locaisVisitados = partida.quantidadeLocaisVisitados,
-        totalLocais = partida.totalLocais
+        totalLocais = partida.totalLocais,
+        chances = partida.chances,
+        perdedor = partida.perdedor?.plus(1),
+        vencedor = partida.vencedor?.plus(1)
     )
 }

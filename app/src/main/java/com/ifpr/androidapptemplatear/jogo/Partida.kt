@@ -14,8 +14,11 @@ enum class ResultadoToque {
     /** Tocou no personagem: pontua e os papéis se invertem. */
     ACHOU,
 
-    /** Tocou fora do personagem. */
+    /** Tocou fora do personagem: perde uma chance. */
     ERROU,
+
+    /** Errou e as chances acabaram: fim de jogo. */
+    GAME_OVER,
 
     /** Toque fora da fase de procura (não conta). */
     IGNORADO
@@ -31,6 +34,8 @@ enum class ResultadoToque {
  *   [PONTOS_POR_ACHAR] e passa a ser quem esconde na próxima rodada.
  * - Cada ponto turístico visitado pela primeira vez na partida dá
  *   [BONUS_LOCAL] ao jogador que está com o celular.
+ * - Quem procura tem [CHANCES_POR_RODADA] chances. Cada toque fora do
+ *   personagem tira uma; sem chances, a partida termina (Game Over).
  */
 class Partida(
     val totalLocais: Int = PontosTuristicos.lista.size
@@ -44,7 +49,29 @@ class Partida(
 
         /** Pontos ganhos ao visitar um ponto turístico novo. */
         const val BONUS_LOCAL = 5
+
+        /** Toques errados permitidos a quem procura, por rodada. */
+        const val CHANCES_POR_RODADA = 3
     }
+
+    /** Chances (vidas) restantes de quem procura. */
+    var chances = CHANCES_POR_RODADA
+        private set
+
+    /** Jogador (0 ou 1) que ficou sem chances; null enquanto a partida segue. */
+    var perdedor: Int? = null
+        private set
+
+    val encerrada: Boolean
+        get() = perdedor != null
+
+    /** Quem tem mais pontos (null em caso de empate). */
+    val vencedor: Int?
+        get() = when {
+            pontos[0] > pontos[1] -> 0
+            pontos[1] > pontos[0] -> 1
+            else -> null
+        }
 
     private val pontos = IntArray(JOGADORES)
     private val locaisVisitados = mutableSetOf<String>()
@@ -73,9 +100,10 @@ class Partida(
 
     /** Quem esconde terminou: o celular passa para quem procura. */
     fun terminarDeEsconder(): Boolean {
-        if (fase != Fase.ESCONDENDO) return false
+        if (encerrada || fase != Fase.ESCONDENDO) return false
 
         fase = Fase.PROCURANDO
+        chances = CHANCES_POR_RODADA
         return true
     }
 
@@ -86,7 +114,7 @@ class Partida(
      * @return true se estava procurando e voltou a esconder.
      */
     fun voltarAEsconder(): Boolean {
-        if (fase != Fase.PROCURANDO) return false
+        if (encerrada || fase != Fase.PROCURANDO) return false
 
         fase = Fase.ESCONDENDO
         return true
@@ -94,9 +122,17 @@ class Partida(
 
     /** Registra um toque de quem procura. */
     fun registrarToque(acertouPersonagem: Boolean): ResultadoToque {
-        if (fase != Fase.PROCURANDO) return ResultadoToque.IGNORADO
+        if (encerrada || fase != Fase.PROCURANDO) return ResultadoToque.IGNORADO
 
-        if (!acertouPersonagem) return ResultadoToque.ERROU
+        if (!acertouPersonagem) {
+            chances--
+
+            if (chances > 0) return ResultadoToque.ERROU
+
+            chances = 0
+            perdedor = procurador
+            return ResultadoToque.GAME_OVER
+        }
 
         pontos[procurador] += PONTOS_POR_ACHAR
 
@@ -115,6 +151,7 @@ class Partida(
      * @return true se o local era novo e somou o bônus.
      */
     fun registrarVisita(idPonto: String): Boolean {
+        if (encerrada) return false
         if (!locaisVisitados.add(idPonto)) return false
 
         pontos[jogadorComCelular] += BONUS_LOCAL

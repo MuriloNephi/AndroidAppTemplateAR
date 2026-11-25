@@ -39,6 +39,64 @@ class PartidaTest {
     }
 
     @Test
+    fun errarTiraUmaChance() {
+        val partida = Partida()
+
+        partida.terminarDeEsconder()
+        partida.registrarToque(false)
+
+        assertEquals(Partida.CHANCES_POR_RODADA - 1, partida.chances)
+        assertFalse(partida.encerrada)
+    }
+
+    @Test
+    fun semChancesEhGameOverEInterrompeOJogo() {
+        val partida = Partida()
+
+        partida.terminarDeEsconder()
+        repeat(Partida.CHANCES_POR_RODADA - 1) {
+            assertEquals(ResultadoToque.ERROU, partida.registrarToque(false))
+        }
+        assertEquals(ResultadoToque.GAME_OVER, partida.registrarToque(false))
+
+        assertTrue(partida.encerrada)
+        assertEquals(1, partida.perdedor)
+        assertEquals(0, partida.chances)
+
+        // Depois do Game Over nada mais conta.
+        assertEquals(ResultadoToque.IGNORADO, partida.registrarToque(true))
+        assertFalse(partida.registrarVisita("catedral"))
+        assertFalse(partida.terminarDeEsconder())
+        assertEquals(0, partida.pontosDe(1))
+    }
+
+    @Test
+    fun chancesRecomecamACadaRodada() {
+        val partida = Partida()
+
+        partida.terminarDeEsconder()
+        partida.registrarToque(false)
+        partida.registrarToque(false)
+        partida.registrarToque(true) // Jogador 2 achou
+
+        partida.terminarDeEsconder() // Jogador 2 escondeu
+        assertEquals(Partida.CHANCES_POR_RODADA, partida.chances)
+        assertEquals(0, partida.procurador)
+    }
+
+    @Test
+    fun vencedorEhQuemTemMaisPontos() {
+        val partida = Partida()
+
+        assertEquals(null, partida.vencedor)
+
+        partida.terminarDeEsconder()
+        partida.registrarToque(true)
+
+        assertEquals(1, partida.vencedor)
+    }
+
+    @Test
     fun errarNaoPontua() {
         val partida = Partida()
 
