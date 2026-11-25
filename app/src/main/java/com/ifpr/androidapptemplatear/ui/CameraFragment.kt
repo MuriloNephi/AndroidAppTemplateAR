@@ -14,6 +14,7 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.Button
 import android.widget.FrameLayout
+import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.activity.result.contract.ActivityResultContracts
@@ -42,6 +43,7 @@ import io.github.sceneview.SceneView
 import io.github.sceneview.ar.ARSceneView
 import io.github.sceneview.ar.node.AnchorNode
 import io.github.sceneview.math.Position
+import io.github.sceneview.math.Scale
 import io.github.sceneview.node.ModelNode
 import io.github.sceneview.node.Node
 import kotlinx.coroutines.CancellationException
@@ -65,6 +67,18 @@ class CameraFragment : Fragment() {
         private const val AR_TIMEOUT_MS = 15000L
         private const val CAMERA_TIMEOUT_MS = 8000L
         private const val MODELO_INICIAL = "camaleao_pose.glb"
+
+        /**
+         * O jogo usa a câmera normal: quem esconde arrasta o personagem
+         * sobre a imagem e, no "Pronto", a imagem congela como uma foto.
+         * Troque para true para voltar a usar ARCore quando disponível.
+         */
+        private const val USAR_AR = false
+
+        /** Tamanho inicial do personagem na câmera normal (unidades 3D). */
+        private const val TAMANHO_INICIAL = 0.6f
+        private const val ESCALA_MINIMA = 0.3f
+        private const val ESCALA_MAXIMA = 3f
 
         /** Cores da paleta para disfarçar o personagem (null = cor original). */
         private val PALETA: List<Int?> = listOf(
@@ -124,6 +138,14 @@ class CameraFragment : Fragment() {
 
     /** Cor aplicada ao personagem nesta rodada (null = original). */
     private var corAtual: Int? = null
+
+    // Câmera normal: imagem ao vivo e foto congelada na procura.
+    private var previewView: PreviewView? = null
+    private var fotoCongelada: ImageView? = null
+
+    /** Escala do personagem definida por quem esconde (1 = tamanho inicial). */
+    private var escalaAtual = 1f
+    private var escalaBase = 1f
 
     private var somPlayer: SoundPlayer? = null
 
@@ -187,10 +209,9 @@ class CameraFragment : Fragment() {
             when (mode) {
                 Mode.AR -> placeModel()
 
+                // Na câmera normal, volta o personagem ao centro.
                 Mode.CAMERA,
-                Mode.STATIC -> {
-                    startPreview(useCamera = mode == Mode.CAMERA)
-                }
+                Mode.STATIC -> centralizarPersonagem()
 
                 Mode.CHECKING -> Unit
             }
@@ -207,7 +228,7 @@ class CameraFragment : Fragment() {
         passarTexto = view.findViewById(R.id.passarTexto)
 
         view.findViewById<View>(R.id.comecarProcura).setOnClickListener {
-            passarOverlay?.visibility = View.GONE
+            fecharTelaDePassar()
             statusText?.text = "Toque onde você acha que o personagem está."
         }
 
@@ -255,8 +276,8 @@ class CameraFragment : Fragment() {
         prontoButton?.visibility = visibilidade
         placeButton?.visibility = visibilidade
 
-        // Quem procura não pode arrastar o personagem.
-        modelNode?.isEditable = escondendo
+        // Quem procura não pode arrastar o personagem (gestos do AR).
+        modelNode?.isEditable = escondendo && mode == Mode.AR
     }
 
     private fun voltarAEsconderSeNecessario() {
@@ -285,16 +306,29 @@ class CameraFragment : Fragment() {
 
         if (!jogoViewModel.terminarDeEsconder()) return
 
+        // A imagem vira foto: não muda enquanto o celular troca de mão.
+        congelarCamera()
+
         val procurador = jogoViewModel.placar.value?.procurador ?: 2
 
         passarTexto?.text =
             "Passe o celular para o Jogador $procurador.\n\n" +
                     "Jogador $procurador: encontre o personagem e toque nele!"
 
+        // A cena 3D transparente é desenhada por cima das outras views
+        // (SurfaceView com Z-order no topo): esconde o personagem para
+        // ele não aparecer sobre esta tela.
+        modelNode?.isVisible = false
+
         passarOverlay?.apply {
             visibility = View.VISIBLE
             bringToFront()
         }
+    }
+
+    private fun fecharTelaDePassar() {
+        passarOverlay?.visibility = View.GONE
+        modelNode?.isVisible = true
     }
 
     /** Toque na cena: só conta durante a procura. */
@@ -312,11 +346,25 @@ class CameraFragment : Fragment() {
 
                 statusText?.text =
                     "Jogador ${placar.procurador} achou! " +
-                            "+${Partida.PONTOS_POR_ACHAR} pontos. " +
-                            "Agora é a sua vez de esconder."
+                            "+${Partida.PONTOS_POR_ACHAR} pontos."
 
-                // Nova rodada: o personagem volta a ser posicionado.
-                loadModel()
+                // Mostra o acerto por um instante e começa a nova rodada:
+                // a câmera volta ao vivo para o personagem ser escondido.
+                val esperado = generation
+
+                viewLifecycleOwner.lifecycleScope.launch {
+                    delay(1_500L)
+
+                    if (container == null || esperado != generation) {
+                        return@launch
+                    }
+
+                    reiniciarCena()
+
+                    statusText?.text =
+                        "Jogador ${placar.procurador}, agora é a sua vez " +
+                                "de esconder!"
+                }
             }
 
             ResultadoToque.ERROU -> {
@@ -339,10 +387,109 @@ class CameraFragment : Fragment() {
         return false
     }
 
+    /**
+     * Escondendo: tocar ou arrastar move o personagem.
+     * Procurando: o toque é o palpite de quem procura.
+     */
     private fun configurarToque(scene: SceneView) {
         scene.setOnGestureListener(
-            onSingleTapConfirmed = { _, node -> aoTocarNaCena(node) }
+            onSingleTapConfirmed = { evento, node ->
+                if (estaEscondendo()) {
+                    moverPersonagem(evento.x, evento.y)
+                } else {
+                    aoTocarNaCena(node)
+                }
+            },
+            onScroll = { _, evento, _, _ ->
+                if (estaEscondendo()) {
+                    moverPersonagem(evento.x, evento.y)
+                }
+            }
         )
+    }
+
+    private fun estaEscondendo(): Boolean =
+        jogoViewModel.placar.value?.fase == Fase.ESCONDENDO
+
+    /** Leva o personagem até o ponto tocado (câmera normal). */
+    private fun moverPersonagem(x: Float, y: Float) {
+        if (mode != Mode.CAMERA && mode != Mode.STATIC) return
+
+        val scene = sceneView ?: return
+        val node = modelNode ?: return
+
+        runCatching {
+            val raio = scene.cameraNode.screenPointToRay(x, y)
+            val direcao = raio.direction
+
+            if (kotlin.math.abs(direcao.z) < 1e-4f) return
+
+            // Interseção do raio com o plano z = 0, onde fica o personagem.
+            val t = -raio.origin.z / direcao.z
+            val ponto = raio.getPoint(t)
+
+            node.position = Position(ponto.x, ponto.y, 0f)
+        }
+    }
+
+    private fun centralizarPersonagem() {
+        val node = modelNode ?: return
+
+        node.position = Position(0f, 0f, 0f)
+        mudarTamanho(1f / escalaAtual)
+    }
+
+    /** Multiplica o tamanho do personagem, dentro de um limite. */
+    private fun mudarTamanho(fator: Float) {
+        val node = modelNode ?: return
+
+        escalaAtual = (escalaAtual * fator)
+            .coerceIn(ESCALA_MINIMA, ESCALA_MAXIMA)
+
+        node.scale = Scale(escalaBase * escalaAtual)
+    }
+
+    /**
+     * Troca a imagem ao vivo por uma foto do momento e desliga a câmera.
+     * Assim o fundo do esconderijo não muda quando o celular é passado.
+     */
+    private fun congelarCamera() {
+        if (mode != Mode.CAMERA) return
+
+        val host = container ?: return
+        val preview = previewView ?: return
+        val foto = runCatching { preview.bitmap }.getOrNull()
+
+        // Sem câmera ligada, o vigia não deve trocar de modo.
+        cameraWatchdogJob?.cancel()
+        cameraWatchdogJob = null
+
+        cameraPreview?.let { uso ->
+            runCatching { cameraProvider?.unbind(uso) }
+        }
+
+        if (foto == null) return
+
+        val imagem = ImageView(requireContext()).apply {
+            scaleType = ImageView.ScaleType.FIT_XY
+            setImageBitmap(foto)
+        }
+
+        host.removeView(preview)
+        host.addView(imagem, 0, fullSize())
+
+        previewView = null
+        fotoCongelada = imagem
+    }
+
+    /** Começa a rodada de esconder do zero. */
+    private fun reiniciarCena() {
+        when (mode) {
+            Mode.AR -> loadModel()
+            Mode.CAMERA, Mode.STATIC ->
+                startPreview(useCamera = mode == Mode.CAMERA)
+            Mode.CHECKING -> Unit
+        }
     }
 
     /** Pinta o personagem (null = cor original do modelo). */
@@ -418,8 +565,41 @@ class CameraFragment : Fragment() {
             )
         }
 
-        panel.addView(paleta)
-        paletaView = paleta
+        // Tamanho: menor fica mais fácil de esconder.
+        val tamanho = LinearLayout(requireContext()).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            setPadding(0, dp(6), 0, 0)
+        }
+
+        tamanho.addView(TextView(requireContext()).apply {
+            text = "Tamanho:"
+            textSize = 13f
+            setTextColor(Color.WHITE)
+        })
+
+        listOf("−" to 0.8f, "+" to 1.25f).forEach { (rotulo, fator) ->
+            tamanho.addView(
+                Button(requireContext()).apply {
+                    text = rotulo
+                    textSize = 18f
+                    setOnClickListener { mudarTamanho(fator) }
+                },
+                LinearLayout.LayoutParams(dp(56), dp(44)).apply {
+                    marginStart = dp(8)
+                }
+            )
+        }
+
+        // Controles de quem esconde: paleta + tamanho.
+        val controles = LinearLayout(requireContext()).apply {
+            orientation = LinearLayout.VERTICAL
+            addView(paleta)
+            addView(tamanho)
+        }
+
+        panel.addView(controles)
+        paletaView = controles
 
         prontoButton = Button(requireContext()).apply {
             text = "Pronto! Passar o celular"
@@ -476,8 +656,8 @@ class CameraFragment : Fragment() {
     private fun checkAvailability() {
         availabilityJob?.cancel()
 
-        // Não tenta iniciar ARCore no emulador.
-        if (isEmulator()) {
+        // Câmera normal por escolha do jogo; também não usa ARCore no emulador.
+        if (!USAR_AR || isEmulator()) {
             requestMode(useAr = false)
             return
         }
@@ -712,11 +892,9 @@ class CameraFragment : Fragment() {
             isEnabled = false
         }
 
-        statusText?.text = if (useCamera) {
-            "Modelo sobre a câmera, sem fixação no ambiente."
-        } else {
-            "Visualização 3D sem câmera."
-        }
+        statusText?.text =
+            "Toque ou arraste para mover o personagem até o esconderijo. " +
+                    "Use − e + para o tamanho, pinte e toque em Pronto."
 
         host.setBackgroundColor(Color.rgb(45, 55, 65))
 
@@ -733,6 +911,8 @@ class CameraFragment : Fragment() {
             null
         }
 
+        previewView = cameraView
+
         try {
             val scene = SceneView(
                 context = requireContext(),
@@ -740,6 +920,10 @@ class CameraFragment : Fragment() {
             )
 
             scene.lifecycle = viewLifecycleOwner.lifecycle
+
+            // A câmera 3D fica fixa: arrastar move o personagem, não a cena.
+            scene.cameraManipulator = null
+
             configurarToque(scene)
             scene.cameraNode.position = Position(0f, 0f, 3f)
             scene.cameraNode.lookAt(Position(0f, 0f, 0f))
@@ -923,12 +1107,18 @@ class CameraFragment : Fragment() {
 
                 val node = ModelNode(
                     modelInstance = instance,
-                    scaleToUnits = if (isAr) 0.5f else 1.5f,
+                    scaleToUnits = if (isAr) 0.5f else TAMANHO_INICIAL,
                     centerOrigin = Position(0f, 0f, 0f)
                 )
 
-                node.isEditable =
-                    jogoViewModel.placar.value?.fase != Fase.PROCURANDO
+                // No AR os gestos da SceneView movem o personagem; na câmera
+                // normal o arraste e o tamanho são controlados pelo jogo.
+                node.isEditable = isAr &&
+                        jogoViewModel.placar.value?.fase != Fase.PROCURANDO
+
+                escalaBase = node.scale.x
+                escalaAtual = 1f
+
                 modelNode = node
 
                 // Mantém a cor escolhida se o modelo for recarregado.
@@ -1075,6 +1265,9 @@ class CameraFragment : Fragment() {
 
         sceneView = null
         arView = null
+
+        previewView = null
+        fotoCongelada = null
 
         container?.removeAllViews()
     }
