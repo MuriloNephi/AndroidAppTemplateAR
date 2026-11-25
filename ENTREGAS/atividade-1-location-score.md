@@ -12,6 +12,7 @@ Saída de `git log --oneline main..HEAD`:
 
 | Commit | Descrição |
 |--------|-----------|
+| [330f035](https://github.com/MuriloNephi/AndroidAppTemplateAR/commit/330f0351f6c2d48341dbd85230cfc8902020863d) | usa a câmera normal e congela a imagem ao passar o celular |
 | [32e2416](https://github.com/MuriloNephi/AndroidAppTemplateAR/commit/32e241625fb04415e010ecbbb8d92e3bcfd801f4) | implementa esconder, pintar e procurar o camaleão na tela |
 | [36614c3](https://github.com/MuriloNephi/AndroidAppTemplateAR/commit/36614c390fc4fd1498521e64c28f1230c20d3966) | troca a lógica para esconde-esconde entre dois jogadores |
 | [d389034](https://github.com/MuriloNephi/AndroidAppTemplateAR/commit/d38903403887c8d249f8f201d7cd6584a877d8af) | Merge da branch fase-2 (camaleão, som e nome do jogo) |
@@ -49,4 +50,4 @@ Arquivo: `prints/pontuacao.png`
 
 ## Como a pontuação funciona
 
-> O Hide and Seek é um esconde-esconde em realidade aumentada para dois jogadores no mesmo celular. Quem esconde posiciona o camaleão em algum lugar do ambiente, pinta ele com uma cor da paleta para disfarçá-lo e passa o celular. Quem procura toca na tela onde acha que o camaleão está. Se tocar nele, encontrou o modelo e ganha 10 pontos (constante `PONTOS_POR_ACHAR`), toca o som do camaleão e os papéis se invertem: quem achou passa a esconder. Também usei a localização: há sete pontos turísticos de Ponta Grossa numa lista única, e o primeiro jogador a chegar a cada um ganha 5 pontos de bônus (`BONUS_LOCAL`). Cada local só dá bônus uma vez por partida, porque guardo os locais visitados num `Set`. No topo da tela aparecem sempre os pontos dos dois jogadores, de quem é a vez, os locais visitados e o endereço atual, obtido por geocoding reverso e atualizado em tempo real.
+> O Hide and Seek é um esconde-esconde em realidade aumentada para dois jogadores no mesmo celular. Quem esconde aponta a câmera para um lugar, arrasta o camaleão até o esconderijo, ajusta o tamanho, pinta ele com uma cor da paleta para disfarçá-lo e toca em Pronto: a imagem congela e o celular passa para o outro jogador. Quem procura toca na foto onde acha que o camaleão está. Se tocar nele, encontrou o modelo e ganha 10 pontos (constante `PONTOS_POR_ACHAR`), toca o som do camaleão e os papéis se invertem: quem achou passa a esconder. Também usei a localização: há sete pontos turísticos de Ponta Grossa numa lista única, e o primeiro jogador a chegar a cada um ganha 5 pontos de bônus (`BONUS_LOCAL`). Cada local só dá bônus uma vez por partida, porque guardo os locais visitados num `Set`. No topo da tela aparecem sempre os pontos dos dois jogadores, de quem é a vez, os locais visitados e o endereço atual, obtido por geocoding reverso e atualizado em tempo real.
