@@ -3,6 +3,7 @@ package com.ifpr.androidapptemplatear.ui
 import android.Manifest
 import android.content.pm.PackageManager
 import android.graphics.Color
+import android.graphics.drawable.GradientDrawable
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
@@ -11,6 +12,7 @@ import android.view.Gravity
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.Button
 import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.TextView
@@ -30,13 +32,18 @@ import com.google.ar.core.Config
 import com.google.ar.core.HitResult
 import com.google.ar.core.Plane
 import com.google.ar.core.TrackingState
+import com.google.android.filament.Colors
 import com.ifpr.androidapptemplatear.R
+import com.ifpr.androidapptemplatear.SoundPlayer
+import com.ifpr.androidapptemplatear.jogo.Fase
 import com.ifpr.androidapptemplatear.jogo.Partida
+import com.ifpr.androidapptemplatear.jogo.ResultadoToque
 import io.github.sceneview.SceneView
 import io.github.sceneview.ar.ARSceneView
 import io.github.sceneview.ar.node.AnchorNode
 import io.github.sceneview.math.Position
 import io.github.sceneview.node.ModelNode
+import io.github.sceneview.node.Node
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -57,6 +64,20 @@ class CameraFragment : Fragment() {
         private const val AVAILABILITY_TIMEOUT_MS = 4000L
         private const val AR_TIMEOUT_MS = 15000L
         private const val CAMERA_TIMEOUT_MS = 8000L
+        private const val MODELO_INICIAL = "camaleao_pose.glb"
+
+        /** Cores da paleta para disfarçar o personagem (null = cor original). */
+        private val PALETA: List<Int?> = listOf(
+            null,
+            Color.rgb(46, 125, 50),   // verde
+            Color.rgb(121, 85, 72),   // marrom
+            Color.rgb(158, 158, 158), // cinza
+            Color.rgb(245, 245, 245), // branco
+            Color.rgb(33, 33, 33),    // preto
+            Color.rgb(25, 118, 210),  // azul
+            Color.rgb(229, 57, 53),   // vermelho
+            Color.rgb(253, 216, 53)   // amarelo
+        )
     }
 
     private val localizacaoController = LocalizacaoController(this)
@@ -90,10 +111,21 @@ class CameraFragment : Fragment() {
     private var arTracking = false
     private var cameraStreaming = false
 
-    private var currentModelFile = "neutrofilo.glb"
+    private var currentModelFile = MODELO_INICIAL
 
     private lateinit var sharedViewModel: SharedModelViewModel
     private lateinit var jogoViewModel: JogoViewModel
+
+    // Controles de quem esconde.
+    private var paletaView: View? = null
+    private var prontoButton: Button? = null
+    private var passarOverlay: View? = null
+    private var passarTexto: TextView? = null
+
+    /** Cor aplicada ao personagem nesta rodada (null = original). */
+    private var corAtual: Int? = null
+
+    private var somPlayer: SoundPlayer? = null
 
     private val permissionLauncher =
         registerForActivityResult(
@@ -164,33 +196,173 @@ class CameraFragment : Fragment() {
             }
         }
 
-        checkAvailability()
-
-        val parent = container?.parent as? ViewGroup
-
         jogoViewModel =
             ViewModelProvider(requireActivity())[
                 JogoViewModel::class.java
             ]
 
+        somPlayer = SoundPlayer(requireContext())
+
+        passarOverlay = view.findViewById(R.id.passarOverlay)
+        passarTexto = view.findViewById(R.id.passarTexto)
+
+        view.findViewById<View>(R.id.comecarProcura).setOnClickListener {
+            passarOverlay?.visibility = View.GONE
+            statusText?.text = "Toque onde você acha que o personagem está."
+        }
+
+        // A tela foi recriada no meio da procura: o personagem posicionado
+        // se perdeu, então quem escondeu precisa esconder de novo.
+        voltarAEsconderSeNecessario()
+
+        checkAvailability()
+
+        val parent = container?.parent as? ViewGroup
+
         if (parent != null) {
             localizacaoController.conectar(parent) { ponto ->
-                val novo = jogoViewModel.registrarDescoberta(ponto)
+                val jogador =
+                    (jogoViewModel.placar.value?.let { placar ->
+                        if (placar.fase == Fase.ESCONDENDO) {
+                            placar.escondedor
+                        } else {
+                            placar.procurador
+                        }
+                    }) ?: 1
 
-                sharedViewModel.selectModel(ponto.modelo)
-
-                if (novo) {
+                if (jogoViewModel.registrarVisita(ponto)) {
                     statusText?.text =
-                        "+${Partida.PONTOS_POR_DESCOBERTA} pontos! " +
-                                "Você encontrou: ${ponto.nome}"
+                        "+${Partida.BONUS_LOCAL} pontos para o Jogador " +
+                                "$jogador: você visitou ${ponto.nome}!"
                 }
             }
 
-            jogoViewModel.placar.observe(viewLifecycleOwner) { placar ->
-                localizacaoController.exibirPlacar(placar)
+            placeButton?.bringToFront()
+        }
+
+        jogoViewModel.placar.observe(viewLifecycleOwner) { placar ->
+            localizacaoController.exibirPlacar(placar)
+            atualizarControles(placar)
+        }
+    }
+
+    /** Mostra os controles de quem esconde só na fase de esconder. */
+    private fun atualizarControles(placar: Placar) {
+        val escondendo = placar.fase == Fase.ESCONDENDO
+        val visibilidade = if (escondendo) View.VISIBLE else View.GONE
+
+        paletaView?.visibility = visibilidade
+        prontoButton?.visibility = visibilidade
+        placeButton?.visibility = visibilidade
+
+        // Quem procura não pode arrastar o personagem.
+        modelNode?.isEditable = escondendo
+    }
+
+    private fun voltarAEsconderSeNecessario() {
+        if (jogoViewModel.voltarAEsconder()) {
+            passarOverlay?.visibility = View.GONE
+            corAtual = null
+
+            val jogador = jogoViewModel.placar.value?.escondedor ?: 1
+            statusText?.text =
+                "A cena foi reiniciada. Jogador $jogador, esconda de novo."
+        }
+    }
+
+    /** Quem esconde terminou: cobre a tela para passar o celular. */
+    private fun terminarDeEsconder() {
+        val posicionado = when (mode) {
+            Mode.AR -> anchorNode != null
+            Mode.CAMERA, Mode.STATIC -> modelNode != null
+            Mode.CHECKING -> false
+        }
+
+        if (!posicionado) {
+            statusText?.text = "Posicione o personagem antes de passar o celular."
+            return
+        }
+
+        if (!jogoViewModel.terminarDeEsconder()) return
+
+        val procurador = jogoViewModel.placar.value?.procurador ?: 2
+
+        passarTexto?.text =
+            "Passe o celular para o Jogador $procurador.\n\n" +
+                    "Jogador $procurador: encontre o personagem e toque nele!"
+
+        passarOverlay?.apply {
+            visibility = View.VISIBLE
+            bringToFront()
+        }
+    }
+
+    /** Toque na cena: só conta durante a procura. */
+    private fun aoTocarNaCena(node: Node?) {
+        val placar = jogoViewModel.placar.value ?: return
+        if (placar.fase != Fase.PROCURANDO) return
+        if (passarOverlay?.visibility == View.VISIBLE) return
+
+        val acertou = node != null && pertenceAoPersonagem(node)
+
+        when (jogoViewModel.registrarToque(acertou)) {
+            ResultadoToque.ACHOU -> {
+                somPlayer?.tocarParaModelo(currentModelFile)
+                corAtual = null
+
+                statusText?.text =
+                    "Jogador ${placar.procurador} achou! " +
+                            "+${Partida.PONTOS_POR_ACHAR} pontos. " +
+                            "Agora é a sua vez de esconder."
+
+                // Nova rodada: o personagem volta a ser posicionado.
+                loadModel()
             }
 
-            placeButton?.bringToFront()
+            ResultadoToque.ERROU -> {
+                statusText?.text = "Errou! O personagem não está aí."
+            }
+
+            ResultadoToque.IGNORADO -> Unit
+        }
+    }
+
+    private fun pertenceAoPersonagem(node: Node): Boolean {
+        val personagem = modelNode ?: return false
+        var atual: Node? = node
+
+        while (atual != null) {
+            if (atual === personagem) return true
+            atual = atual.parent
+        }
+
+        return false
+    }
+
+    private fun configurarToque(scene: SceneView) {
+        scene.setOnGestureListener(
+            onSingleTapConfirmed = { _, node -> aoTocarNaCena(node) }
+        )
+    }
+
+    /** Pinta o personagem (null = cor original do modelo). */
+    private fun aplicarCor(cor: Int?) {
+        corAtual = cor
+
+        val node = modelNode ?: return
+
+        val r = if (cor == null) 1f else Color.red(cor) / 255f
+        val g = if (cor == null) 1f else Color.green(cor) / 255f
+        val b = if (cor == null) 1f else Color.blue(cor) / 255f
+
+        node.materialInstances.flatten().forEach { material ->
+            runCatching {
+                material.setParameter(
+                    "baseColorFactor",
+                    Colors.RgbaType.SRGB,
+                    r, g, b, 1f
+                )
+            }
         }
     }
 
@@ -212,6 +384,49 @@ class CameraFragment : Fragment() {
         }
 
         panel.addView(statusText)
+
+        // Paleta: quem esconde pinta o personagem para disfarçá-lo.
+        val paleta = LinearLayout(requireContext()).apply {
+            orientation = LinearLayout.HORIZONTAL
+            setPadding(0, dp(8), 0, 0)
+        }
+
+        PALETA.forEach { cor ->
+            val amostra = TextView(requireContext()).apply {
+                gravity = Gravity.CENTER
+                textSize = 11f
+                text = if (cor == null) "orig." else ""
+                setTextColor(Color.BLACK)
+
+                background = GradientDrawable().apply {
+                    shape = GradientDrawable.OVAL
+                    setColor(cor ?: Color.rgb(220, 220, 220))
+                    setStroke(dp(2), Color.WHITE)
+                }
+
+                contentDescription =
+                    if (cor == null) "Cor original" else "Pintar o personagem"
+
+                setOnClickListener { aplicarCor(cor) }
+            }
+
+            paleta.addView(
+                amostra,
+                LinearLayout.LayoutParams(0, dp(32), 1f).apply {
+                    marginEnd = dp(4)
+                }
+            )
+        }
+
+        panel.addView(paleta)
+        paletaView = paleta
+
+        prontoButton = Button(requireContext()).apply {
+            text = "Pronto! Passar o celular"
+            setOnClickListener { terminarDeEsconder() }
+        }
+
+        panel.addView(prontoButton)
 
         layer.addView(
             panel,
@@ -342,6 +557,7 @@ class CameraFragment : Fragment() {
         val host = container ?: return
 
         clearScene()
+        voltarAEsconderSeNecessario()
         mode = Mode.AR
 
         val expected = generation
@@ -427,6 +643,7 @@ class CameraFragment : Fragment() {
             }
 
             ar.lifecycle = viewLifecycleOwner.lifecycle
+            configurarToque(ar)
 
             host.addView(ar, fullSize())
 
@@ -486,6 +703,7 @@ class CameraFragment : Fragment() {
         val host = container ?: return
 
         clearScene()
+        voltarAEsconderSeNecessario()
 
         mode = if (useCamera) Mode.CAMERA else Mode.STATIC
 
@@ -522,6 +740,7 @@ class CameraFragment : Fragment() {
             )
 
             scene.lifecycle = viewLifecycleOwner.lifecycle
+            configurarToque(scene)
             scene.cameraNode.position = Position(0f, 0f, 3f)
             scene.cameraNode.lookAt(Position(0f, 0f, 0f))
 
@@ -708,8 +927,12 @@ class CameraFragment : Fragment() {
                     centerOrigin = Position(0f, 0f, 0f)
                 )
 
-                node.isEditable = true
+                node.isEditable =
+                    jogoViewModel.placar.value?.fase != Fase.PROCURANDO
                 modelNode = node
+
+                // Mantém a cor escolhida se o modelo for recarregado.
+                aplicarCor(corAtual)
 
                 if (!isAr) {
                     scene.addChildNode(node)
@@ -758,7 +981,9 @@ class CameraFragment : Fragment() {
                 isEnabled = true
             }
 
-            statusText?.text = "Objeto posicionado no ambiente."
+            statusText?.text =
+                "Personagem escondido! Escolha uma cor para disfarçá-lo " +
+                        "e toque em Pronto."
 
         } catch (_: Exception) {
             statusText?.text =
@@ -873,7 +1098,14 @@ class CameraFragment : Fragment() {
             (it.parent as? ViewGroup)?.removeView(it)
         }
 
+        somPlayer?.liberar()
+        somPlayer = null
+
         overlay = null
+        paletaView = null
+        prontoButton = null
+        passarOverlay = null
+        passarTexto = null
         statusText = null
         placeButton = null
         container = null

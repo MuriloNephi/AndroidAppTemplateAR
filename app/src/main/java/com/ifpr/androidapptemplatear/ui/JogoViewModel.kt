@@ -3,13 +3,22 @@ package com.ifpr.androidapptemplatear.ui
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
+import com.ifpr.androidapptemplatear.jogo.Fase
 import com.ifpr.androidapptemplatear.jogo.Partida
 import com.ifpr.androidapptemplatear.jogo.PontoTuristico
+import com.ifpr.androidapptemplatear.jogo.ResultadoToque
 
 data class Placar(
-    val pontuacao: Int,
-    val encontrados: Int,
-    val total: Int
+    val pontosJogador1: Int,
+    val pontosJogador2: Int,
+    val fase: Fase,
+    /** Número (1 ou 2) de quem esconde. */
+    val escondedor: Int,
+    /** Número (1 ou 2) de quem procura. */
+    val procurador: Int,
+    val rodada: Int,
+    val locaisVisitados: Int,
+    val totalLocais: Int
 )
 
 /**
@@ -23,20 +32,31 @@ class JogoViewModel : ViewModel() {
     private val _placar = MutableLiveData(criarPlacar())
     val placar: LiveData<Placar> = _placar
 
-    /** @return true se o ponto era novo e somou pontos. */
-    fun registrarDescoberta(ponto: PontoTuristico): Boolean {
-        val novo = partida.registrarDescoberta(ponto.id)
+    fun terminarDeEsconder(): Boolean =
+        partida.terminarDeEsconder().also { publicar() }
 
-        if (novo) {
-            _placar.value = criarPlacar()
-        }
+    fun voltarAEsconder(): Boolean =
+        partida.voltarAEsconder().also { publicar() }
 
-        return novo
+    fun registrarToque(acertouPersonagem: Boolean): ResultadoToque =
+        partida.registrarToque(acertouPersonagem).also { publicar() }
+
+    /** @return true se o local era novo e somou o bônus. */
+    fun registrarVisita(ponto: PontoTuristico): Boolean =
+        partida.registrarVisita(ponto.id).also { publicar() }
+
+    private fun publicar() {
+        _placar.value = criarPlacar()
     }
 
     private fun criarPlacar() = Placar(
-        pontuacao = partida.pontuacao,
-        encontrados = partida.quantidadeEncontrados,
-        total = partida.totalPontos
+        pontosJogador1 = partida.pontosDe(0),
+        pontosJogador2 = partida.pontosDe(1),
+        fase = partida.fase,
+        escondedor = partida.escondedor + 1,
+        procurador = partida.procurador + 1,
+        rodada = partida.rodada,
+        locaisVisitados = partida.quantidadeLocaisVisitados,
+        totalLocais = partida.totalLocais
     )
 }
