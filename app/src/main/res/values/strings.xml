@@ -12,4 +12,6 @@
     <string name="change">change</string>
     <string name="profile">profile</string>
     <string name="comecar_procura">Começar a procurar</string>
+    <string name="game_over_titulo">GAME OVER</string>
+    <string name="jogar_novamente">Jogar novamente</string>
 </resources>

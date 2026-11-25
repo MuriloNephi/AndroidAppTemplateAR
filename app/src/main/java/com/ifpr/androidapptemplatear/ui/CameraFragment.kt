@@ -122,6 +122,11 @@ class CameraFragment : Fragment() {
     private var passarOverlay: View? = null
     private var passarTexto: TextView? = null
 
+    // Tela de Game Over.
+    private var gameOverOverlay: View? = null
+    private var gameOverMotivo: TextView? = null
+    private var gameOverPontuacao: TextView? = null
+
     /** Cor aplicada ao personagem nesta rodada (null = original). */
     private var corAtual: Int? = null
 
@@ -211,11 +216,21 @@ class CameraFragment : Fragment() {
             statusText?.text = "Toque onde você acha que o personagem está."
         }
 
+        gameOverOverlay = view.findViewById(R.id.gameOverOverlay)
+        gameOverMotivo = view.findViewById(R.id.gameOverMotivo)
+        gameOverPontuacao = view.findViewById(R.id.gameOverPontuacao)
+
+        view.findViewById<View>(R.id.jogarNovamente)
+            .setOnClickListener { jogarNovamente() }
+
         // A tela foi recriada no meio da procura: o personagem posicionado
         // se perdeu, então quem escondeu precisa esconder de novo.
         voltarAEsconderSeNecessario()
 
-        checkAvailability()
+        // Se a partida já terminou (ex.: volta de outra aba), não reabre o AR.
+        if (jogoViewModel.placar.value?.gameOver != true) {
+            checkAvailability()
+        }
 
         val parent = container?.parent as? ViewGroup
 
@@ -243,12 +258,70 @@ class CameraFragment : Fragment() {
         jogoViewModel.placar.observe(viewLifecycleOwner) { placar ->
             localizacaoController.exibirPlacar(placar)
             atualizarControles(placar)
+
+            if (placar.gameOver) {
+                encerrarPartida(placar)
+            }
         }
+    }
+
+    /**
+     * Game Over: interrompe AR, câmera, personagem, toques, GPS e
+     * pontuação, e mostra o motivo da derrota com o placar final.
+     */
+    private fun encerrarPartida(placar: Placar) {
+        localizacaoController.pausarJogo()
+
+        availabilityJob?.cancel()
+        availabilityJob = null
+
+        clearScene()
+        mode = Mode.CHECKING
+
+        passarOverlay?.visibility = View.GONE
+        statusText?.text = "Partida encerrada."
+
+        gameOverMotivo?.text =
+            "O Jogador ${placar.perdedor} tocou fora do personagem " +
+                    "${Partida.CHANCES_POR_RODADA} vezes e ficou sem chances."
+
+        val resultado = when (placar.vencedor) {
+            null -> "Empate!"
+            else -> "Vencedor: Jogador ${placar.vencedor}"
+        }
+
+        gameOverPontuacao?.text =
+            "Placar final\n" +
+                    "Jogador 1: ${placar.pontosJogador1} pts\n" +
+                    "Jogador 2: ${placar.pontosJogador2} pts\n\n" +
+                    resultado
+
+        gameOverOverlay?.apply {
+            visibility = View.VISIBLE
+            bringToFront()
+        }
+    }
+
+    /** Reinicia pontos, chances, papéis, locais, personagem e sessão AR. */
+    private fun jogarNovamente() {
+        gameOverOverlay?.visibility = View.GONE
+
+        jogoViewModel.reiniciar()
+
+        corAtual = null
+        currentModelFile = MODELO_INICIAL
+        sharedViewModel.selectModel(MODELO_INICIAL)
+
+        statusText?.text = "Nova partida! Jogador 1, esconda o personagem."
+
+        localizacaoController.retomarJogo()
+        checkAvailability()
     }
 
     /** Mostra os controles de quem esconde só na fase de esconder. */
     private fun atualizarControles(placar: Placar) {
-        val escondendo = placar.fase == Fase.ESCONDENDO
+        val escondendo =
+            placar.fase == Fase.ESCONDENDO && !placar.gameOver
         val visibilidade = if (escondendo) View.VISIBLE else View.GONE
 
         paletaView?.visibility = visibilidade
@@ -320,8 +393,14 @@ class CameraFragment : Fragment() {
             }
 
             ResultadoToque.ERROU -> {
-                statusText?.text = "Errou! O personagem não está aí."
+                val restantes = jogoViewModel.placar.value?.chances ?: 0
+                statusText?.text =
+                    "Errou! O personagem não está aí. " +
+                            "Restam $restantes chance(s)."
             }
+
+            // A tela de Game Over é exibida pelo observador do placar.
+            ResultadoToque.GAME_OVER -> Unit
 
             ResultadoToque.IGNORADO -> Unit
         }
@@ -1106,6 +1185,9 @@ class CameraFragment : Fragment() {
         prontoButton = null
         passarOverlay = null
         passarTexto = null
+        gameOverOverlay = null
+        gameOverMotivo = null
+        gameOverPontuacao = null
         statusText = null
         placeButton = null
         container = null
