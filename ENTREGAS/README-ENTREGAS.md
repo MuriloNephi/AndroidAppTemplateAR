@@ -1,11 +1,13 @@
-# Resumo das entregas — Bioverse-AR
+# Resumo das entregas — Hide and Seek
+
+Jogo: esconde-esconde com camaleão em Realidade Aumentada (base: branch `fase-2`).
 
 Legenda: [x] pronto · [ ] depende de mim (print ou vídeo)
 
 ## Atividade 1 — Localização + Pontuação
 
 - [x] Link da branch (pronto): https://github.com/MuriloNephi/AndroidAppTemplateAR/tree/feature-location-score
-- [ ] Print (endereço + pontuação) → **EU preciso tirar** e salvar em [`prints/pontuacao.png`](../prints/pontuacao.png)
+- [ ] Print (endereço + pontuação) → **EU preciso tirar** e salvar em [`prints/pontuacao.png`](../prints/pontuacao.png). Mostre a HUD com os pontos de J1/J2 e o endereço
 - [x] Explicação da pontuação (pronta): [`ENTREGAS/atividade-1-location-score.md`](https://github.com/MuriloNephi/AndroidAppTemplateAR/blob/feature-location-score/ENTREGAS/atividade-1-location-score.md), seção "Como a pontuação funciona"
 
 ## Atividade 2 — Game Over
@@ -16,7 +18,7 @@ Legenda: [x] pronto · [ ] depende de mim (print ou vídeo)
 
 ## Atividade 3 — Slides
 
-- [x] Arquivo .pptx (pronto): [`ENTREGAS/apresentacao-jogo-ar.pptx`](https://github.com/MuriloNephi/AndroidAppTemplateAR/blob/feature-game-over/ENTREGAS/apresentacao-jogo-ar.pptx). Falta trocar `[SEU NOME]` no slide 1 e inserir as imagens dos 3 objetos 3D no slide 3
+- [x] Arquivo .pptx (pronto): [`ENTREGAS/apresentacao-jogo-ar.pptx`](https://github.com/MuriloNephi/AndroidAppTemplateAR/blob/feature-game-over/ENTREGAS/apresentacao-jogo-ar.pptx). Falta trocar `[SEU NOME]` no slide 1 e inserir as imagens dos 4 objetos 3D no slide 3
 - [ ] Vídeo de 30 s ou mais → **EU preciso gravar** e salvar em [`videos/demo-30s.mp4`](../videos/demo-30s.mp4), depois inserir no slide 6
 - [x] Roteiro de fala (pronto): [`ENTREGAS/roteiro-fala.md`](https://github.com/MuriloNephi/AndroidAppTemplateAR/blob/feature-game-over/ENTREGAS/roteiro-fala.md)
 
