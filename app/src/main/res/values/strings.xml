@@ -11,4 +11,6 @@
     <string name="camera">camera</string>
     <string name="change">change</string>
     <string name="profile">profile</string>
+    <string name="game_over_titulo">GAME OVER</string>
+    <string name="jogar_novamente">Jogar novamente</string>
 </resources>

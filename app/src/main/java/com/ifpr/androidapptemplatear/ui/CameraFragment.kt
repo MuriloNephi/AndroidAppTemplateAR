@@ -57,6 +57,7 @@ class CameraFragment : Fragment() {
         private const val AVAILABILITY_TIMEOUT_MS = 4000L
         private const val AR_TIMEOUT_MS = 15000L
         private const val CAMERA_TIMEOUT_MS = 8000L
+        private const val MODELO_INICIAL = "neutrofilo.glb"
     }
 
     private val localizacaoController = LocalizacaoController(this)
@@ -90,10 +91,15 @@ class CameraFragment : Fragment() {
     private var arTracking = false
     private var cameraStreaming = false
 
-    private var currentModelFile = "neutrofilo.glb"
+    private var currentModelFile = MODELO_INICIAL
 
     private lateinit var sharedViewModel: SharedModelViewModel
     private lateinit var jogoViewModel: JogoViewModel
+
+    private var gameOverOverlay: View? = null
+    private var gameOverMotivo: TextView? = null
+    private var gameOverPontuacao: TextView? = null
+    private var vidasExibidas = Partida.VIDAS_INICIAIS
 
     private val permissionLauncher =
         registerForActivityResult(
@@ -164,14 +170,24 @@ class CameraFragment : Fragment() {
             }
         }
 
-        checkAvailability()
-
-        val parent = container?.parent as? ViewGroup
-
         jogoViewModel =
             ViewModelProvider(requireActivity())[
                 JogoViewModel::class.java
             ]
+
+        gameOverOverlay = view.findViewById(R.id.gameOverOverlay)
+        gameOverMotivo = view.findViewById(R.id.gameOverMotivo)
+        gameOverPontuacao = view.findViewById(R.id.gameOverPontuacao)
+
+        view.findViewById<View>(R.id.jogarNovamente)
+            .setOnClickListener { jogarNovamente() }
+
+        // Se a partida já terminou (ex.: volta de outra aba), não reabre o AR.
+        if (jogoViewModel.placar.value?.gameOver != true) {
+            checkAvailability()
+        }
+
+        val parent = container?.parent as? ViewGroup
 
         if (parent != null) {
             localizacaoController.conectar(parent) { ponto ->
@@ -186,12 +202,91 @@ class CameraFragment : Fragment() {
                 }
             }
 
-            jogoViewModel.placar.observe(viewLifecycleOwner) { placar ->
-                localizacaoController.exibirPlacar(placar)
-            }
-
             placeButton?.bringToFront()
         }
+
+        // Evita anunciar "perdeu uma vida" ao recriar a tela.
+        vidasExibidas =
+            jogoViewModel.placar.value?.vidas ?: Partida.VIDAS_INICIAIS
+
+        jogoViewModel.placar.observe(viewLifecycleOwner) { placar ->
+            localizacaoController.exibirPlacar(placar)
+
+            if (placar.vidas < vidasExibidas && !placar.gameOver) {
+                statusText?.text =
+                    "O tempo acabou! Você perdeu uma vida. " +
+                            "Restam ${placar.vidas}."
+            }
+
+            vidasExibidas = placar.vidas
+
+            if (placar.gameOver) {
+                encerrarPartida(placar)
+            }
+        }
+    }
+
+    override fun onStart() {
+        super.onStart()
+
+        // O cronômetro só corre com a tela do jogo visível.
+        jogoViewModel.retomarCronometro()
+    }
+
+    override fun onStop() {
+        jogoViewModel.pausarCronometro()
+        super.onStop()
+    }
+
+    /**
+     * Game Over: interrompe AR, câmera, modelo, GPS, cronômetro e
+     * pontuação, e exibe o motivo da derrota com a pontuação final.
+     */
+    private fun encerrarPartida(placar: Placar) {
+        jogoViewModel.pausarCronometro()
+        localizacaoController.pausarJogo()
+
+        availabilityJob?.cancel()
+        availabilityJob = null
+
+        clearScene()
+        mode = Mode.CHECKING
+
+        placeButton?.apply {
+            isEnabled = false
+            visibility = View.GONE
+        }
+
+        statusText?.text = "Partida encerrada."
+
+        gameOverMotivo?.text = placar.motivoDerrota?.descricao
+        gameOverPontuacao?.text =
+            "Pontuação final: ${placar.pontuacao}\n" +
+                    "Locais encontrados: ${placar.encontrados}/${placar.total}"
+
+        gameOverOverlay?.apply {
+            visibility = View.VISIBLE
+            bringToFront()
+        }
+    }
+
+    /** Reinicia vidas, pontuação, locais, cronômetro, modelo e sessão AR. */
+    private fun jogarNovamente() {
+        gameOverOverlay?.visibility = View.GONE
+
+        jogoViewModel.reiniciar()
+        vidasExibidas = Partida.VIDAS_INICIAIS
+
+        currentModelFile = MODELO_INICIAL
+        sharedViewModel.selectModel(MODELO_INICIAL)
+
+        placeButton?.visibility = View.VISIBLE
+        statusText?.text = "Nova partida! Encontre um ponto turístico."
+
+        localizacaoController.retomarJogo()
+        checkAvailability()
+
+        jogoViewModel.retomarCronometro()
     }
 
     private fun createControls() {
@@ -874,6 +969,9 @@ class CameraFragment : Fragment() {
         }
 
         overlay = null
+        gameOverOverlay = null
+        gameOverMotivo = null
+        gameOverPontuacao = null
         statusText = null
         placeButton = null
         container = null

@@ -27,6 +27,7 @@ import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.lifecycleScope
+import com.ifpr.androidapptemplatear.jogo.Partida
 import com.ifpr.androidapptemplatear.jogo.PontoTuristico
 import com.ifpr.androidapptemplatear.jogo.PontosTuristicos
 import kotlinx.coroutines.CancellationException
@@ -65,6 +66,10 @@ class LocalizacaoController(
     private var lugarAtual: PontoTuristico? = null
 
     private var monitorando = false
+
+    // Falso após o Game Over: impede reativar o GPS até a nova partida.
+    private var jogoAtivo = true
+
     private var enderecoAtual: String? = null
 
     private var enderecoJob: Job? = null
@@ -203,6 +208,8 @@ class LocalizacaoController(
     }
 
     override fun onStart(owner: LifecycleOwner) {
+        if (!jogoAtivo) return
+
         if (temPermissaoPrecisa()) {
             iniciar()
         } else {
@@ -249,7 +256,7 @@ class LocalizacaoController(
 
     @SuppressLint("MissingPermission")
     private fun iniciar() {
-        if (monitorando) return
+        if (monitorando || !jogoAtivo) return
 
         if (!temPermissaoPrecisa()) {
             mostrarAcao(
@@ -395,11 +402,47 @@ class LocalizacaoController(
         aoEncontrarPonto?.invoke(lugarEncontrado)
     }
 
-    /** Atualiza a linha de pontuação do painel. */
+    /** Atualiza a HUD: pontuação, locais, vidas e cronômetro. */
     fun exibirPlacar(placar: Placar) {
+        val coracoes =
+            "♥".repeat(placar.vidas) +
+                    "♡".repeat(Partida.VIDAS_INICIAIS - placar.vidas)
+
+        val segundos = (placar.tempoRestanteMs + 999L) / 1_000L
+
+        val tempo = when {
+            placar.gameOver -> "Fim de jogo"
+            placar.concluida -> "Todos os locais encontrados!"
+            else -> "Tempo: %d:%02d".format(segundos / 60, segundos % 60)
+        }
+
         placarView?.text =
             "Pontuação: ${placar.pontuacao}  •  " +
-                    "Locais: ${placar.encontrados}/${placar.total}"
+                    "Locais: ${placar.encontrados}/${placar.total}\n" +
+                    "Vidas: $coracoes  •  $tempo"
+    }
+
+    /** Game Over: para o GPS e não aceita novos encontros. */
+    fun pausarJogo() {
+        jogoAtivo = false
+        parar()
+        lugarAtual = null
+        botao?.visibility = View.GONE
+    }
+
+    /** Nova partida: libera os encontros e reativa o GPS. */
+    fun retomarJogo() {
+        jogoAtivo = true
+        lugarAtual = null
+
+        if (temPermissaoPrecisa()) {
+            iniciar()
+        } else {
+            mostrarAcao(
+                mensagem = "Permita a localização precisa para continuar.",
+                textoBotao = "Ativar localização"
+            )
+        }
     }
 
     private fun distancia(
