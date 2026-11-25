@@ -1,4 +1,4 @@
-# Roteiro de fala — Apresentação Bioverse-AR
+# Roteiro de fala — Apresentação Hide and Seek
 
 Slides: [`apresentacao-jogo-ar.pptx`](apresentacao-jogo-ar.pptx). Tempo total: cerca de 6 a 7 minutos, mais o vídeo.
 
@@ -6,54 +6,57 @@ Slides: [`apresentacao-jogo-ar.pptx`](apresentacao-jogo-ar.pptx). Tempo total: c
 
 ## Slide 1 — Capa (~30 s)
 
-> Olá, eu sou [SEU NOME] e vou apresentar o **Bioverse-AR**, um jogo de Realidade Aumentada para Android. A ideia é transformar um passeio pelos pontos turísticos de Ponta Grossa num jogo de exploração. Você caminha pela cidade e, em cada local, aparece um objeto 3D na tela do celular, como se ele estivesse ali no ambiente. Vou mostrar como o jogo funciona, os objetos 3D, a pontuação, a condição de derrota e, no final, um vídeo do jogo rodando.
+> Olá, eu sou [SEU NOME] e vou apresentar o **Hide and Seek**, um jogo de esconde-esconde em Realidade Aumentada para Android. A ideia é simples: um jogador esconde um camaleão virtual no ambiente real, pinta ele para se disfarçar e passa o celular para o amigo do lado, que tem que encontrá-lo. Vou mostrar como se joga, os objetos 3D, a pontuação, a condição de derrota e, no final, um vídeo do jogo rodando.
 
 ## Slide 2 — Objetivo e como jogar (~50 s)
 
-> O objetivo é descobrir os sete pontos turísticos cadastrados antes que as vidas acabem. Jogar é simples. Primeiro, o jogador ativa a localização: no topo da tela aparecem o endereço atual, a pontuação, as vidas e o tempo. Depois, ele vai até um ponto turístico. Quando entra no raio de detecção do local, o objeto 3D daquele ponto é carregado. Aí ele aponta a câmera para o chão ou para uma mesa e toca em "Posicionar" para fixar o objeto no ambiente. E tem o desafio do relógio: são três minutos para achar um ponto novo, senão ele perde uma vida.
+> São dois jogadores e um celular só. Na sua vez de esconder, você aponta a câmera para o chão ou para um móvel e toca em "Posicionar": o camaleão aparece ali, no ambiente. Depois você disfarça: escolhe na paleta uma cor parecida com o lugar onde ele está, verde na grama, marrom na mesa, cinza no chão. Aí toca em "Pronto". A tela fica coberta para o outro jogador não ver onde você escondeu, e você passa o celular. Quem procura toca na tela onde acha que o camaleão está. Se acertar, pontua e passa a ser quem esconde.
 
 ## Slide 3 — Objetos 3D (~40 s)
 
-> Estes são os três objetos 3D do jogo, todos no formato glb, na pasta de assets do app. O **neutrófilo**, uma célula de defesa do corpo humano, que combina com a identidade "Bio" do jogo. O **plano**, um modelo simples de superfície. E o **sofá**. Cada ponto turístico tem um objeto fixo associado. O neutrófilo aparece na Catedral, no Parque Ambiental e em Vila Velha. O plano, no Museu Campos Gerais e na Mansão Vila Hilda. O sofá, na Estação Saudade e no Buraco do Padre.
+> Estes são os objetos 3D do jogo, todos em formato glb. O principal é o **camaleão**, o personagem que se esconde. O animal combina com a mecânica, porque o camaleão muda de cor para se camuflar, e é isso que o jogador faz com a paleta. Na aba "change" dá para trocar o personagem por outros modelos do projeto: o **neutrófilo**, o **sofá** e um **plano** simples. Assim dá para variar e esconder objetos diferentes.
 
 ## Slide 4 — Sistema de pontuação (~45 s)
 
-> A pontuação é direta: cada ponto turístico **novo** vale **dez pontos**. Como são sete pontos, o máximo por partida é setenta. Para não dar para "farmar" pontos, guardo os locais já encontrados num conjunto, um Set: cada local pontua só uma vez por partida. Se o jogador voltar a um lugar já visitado, o objeto aparece de novo, mas a pontuação não muda. A pontuação, o número de locais encontrados e o endereço atual ficam sempre visíveis no topo da tela, atualizados em tempo real.
+> Quem encontra o camaleão ganha **dez pontos** e passa a esconder na rodada seguinte. Também usei a localização do celular: cadastrei sete pontos turísticos de Ponta Grossa e, quando os jogadores chegam a um deles pela primeira vez na partida, quem está com o celular ganha **cinco pontos de bônus**. Guardo os locais já visitados num conjunto, um Set, para que cada um só dê bônus uma vez. No topo da tela ficam sempre os pontos dos dois jogadores, de quem é a vez, as chances e o endereço atual.
 
 ## Slide 5 — Game Over (~50 s)
 
-> A derrota é por tempo, com vidas. O jogador começa com três vidas e tem três minutos para encontrar um ponto novo. Se o cronômetro zera, ele perde uma vida e o relógio recomeça. Encontrar um ponto novo também reinicia o tempo. Quando as vidas chegam a zero, é Game Over. Nesse momento a partida é encerrada de verdade: param o cronômetro, a pontuação, o GPS, a sessão de realidade aumentada, a câmera e o objeto 3D. Aparece uma tela com o motivo da derrota e a pontuação final, e o botão "Jogar novamente" zera tudo e começa uma partida nova.
+> Quem procura não pode sair tocando em tudo: tem **três chances** por rodada, que aparecem como corações na tela. Cada toque fora do camaleão tira uma chance. Se achar o camaleão, as chances voltam a três na próxima rodada. Mas se as chances chegarem a zero, é Game Over. A partida é encerrada de verdade: param o GPS, a realidade aumentada, a câmera, o personagem e a pontuação. Aparece uma tela com o motivo da derrota, o placar dos dois jogadores e o vencedor, e o botão "Jogar novamente" zera tudo para uma nova partida.
 
 ## Slide 6 — O jogo em execução (~10 s de fala + vídeo)
 
-> Agora vou mostrar o jogo funcionando no celular. Reparem na pontuação no topo da tela e, no final, na tela de Game Over.
+> Agora vou mostrar o jogo funcionando. Reparem na pontuação subindo quando o camaleão é encontrado e, no final, na tela de Game Over.
 
 *(Reproduzir `videos/demo-30s.mp4`.)*
 
-## Slide 7 — Os 7 pontos turísticos (extra, ~30 s)
+## Slide 7 — Bônus de localização (extra, ~30 s)
 
-> Esta é a lista dos pontos turísticos. Ficam todos centralizados num único arquivo do código, o `PontosTuristicos.kt`, com nome, latitude, longitude, raio de detecção e objeto 3D. Os pontos do centro têm raio menor, de 50 a 80 metros, porque estão próximos uns dos outros. Os parques naturais, como Buraco do Padre e Vila Velha, têm raio maior. As coordenadas vieram do OpenStreetMap.
+> Estes são os sete pontos turísticos. Ficam numa lista única no código, com nome, latitude, longitude e raio de detecção. Os do centro têm raio menor, de 50 a 80 metros, porque estão perto uns dos outros. Os parques naturais, como Buraco do Padre e Vila Velha, têm raio maior. As coordenadas vieram do OpenStreetMap. A ideia é incentivar a jogar em lugares diferentes da cidade.
 
 ## Slide 8 — Tecnologias e desafios (extra, ~40 s)
 
-> O jogo foi feito em Kotlin para Android, usando ViewModel e LiveData para manter o estado da partida. A realidade aumentada usa ARCore com a biblioteca SceneView. Se o aparelho não tiver ARCore, o jogo usa a câmera comum, pelo CameraX. A localização vem do GPS e o endereço do Geocoder. Os maiores desafios foram lidar com a imprecisão do GPS, encerrar AR, câmera e GPS com segurança no Game Over, e manter a partida ao trocar de aba ou girar a tela. Obrigado!
+> O jogo foi feito em Kotlin para Android, com ViewModel e LiveData para manter o estado da partida. A realidade aumentada usa ARCore com a biblioteca SceneView. Se o aparelho não tiver ARCore, o jogo usa a câmera comum, pelo CameraX. Os maiores desafios foram:
+> - saber se o toque acertou o modelo 3D ou o vazio;
+> - pintar o camaleão alterando o material do modelo;
+> - esconder a tela na troca de jogador;
+> - encerrar AR, câmera e GPS com segurança no Game Over.
+>
+> Obrigado!
 
 ---
 
 ## Roteiro do vídeo de 30 s ou mais — `videos/demo-30s.mp4`
 
-Objetivo: mostrar o jogo rodando, **a pontuação subindo** e **o Game Over**. Grave a tela do celular (gravador nativo do Android) e depois edite.
+Objetivo: mostrar o jogo rodando, **a pontuação subindo** e **o Game Over**. Grave a tela do celular (gravador nativo do Android) com outra pessoa jogando junto.
 
 | Tempo | O que mostrar |
 |-------|---------------|
-| 0–5 s | App abrindo. HUD no topo com `Pontuação: 0`, `Vidas: ♥♥♥`, `Tempo: 3:00` e o endereço atual. |
-| 5–12 s | Câmera apontada para o chão; aparece "Superfície encontrada"; toque em **Posicionar** e o objeto 3D aparece no ambiente. |
-| 12–20 s | Chegando a um ponto turístico (ex.: perto da Catedral Sant'Ana): a mensagem "+10 pontos! Você encontrou: …" aparece e a HUD muda para `Pontuação: 10 • Locais: 1/7`. |
-| 20–25 s | (Trecho acelerado no editor) o tempo zera e aparece "O tempo acabou! Você perdeu uma vida". A HUD mostra `♥♥♡`. |
-| 25–32 s | Última vida acabando: tela **GAME OVER** com o motivo e a pontuação final. |
-| 32–35 s | Toque em **Jogar novamente**: HUD de volta a `Pontuação: 0`, `♥♥♥`, `3:00`. |
+| 0–8 s | App aberto, HUD com `J1: 0 pts • J2: 0 pts`, "Jogador 1 esconde" e o endereço. Jogador 1 aponta para o chão e toca em **Posicionar**: o camaleão aparece. |
+| 8–13 s | Jogador 1 toca numa cor da paleta (ex.: verde) e o camaleão muda de cor. Toca em **Pronto! Passar o celular**. |
+| 13–16 s | Tela "Passe o celular para o Jogador 2". Jogador 2 toca em **Começar a procurar**. HUD: `Chances: ♥♥♥`. |
+| 16–22 s | Jogador 2 erra uma vez (`♥♥♡`) e depois toca no camaleão: som, "+10 pontos" e HUD `J2: 10 pts`, agora "Jogador 2 esconde". |
+| 22–30 s | Jogador 2 esconde, passa o celular, e o Jogador 1 erra 3 vezes. |
+| 30–35 s | Tela **GAME OVER** com o motivo, o placar e o vencedor (Jogador 2). Toque em **Jogar novamente**. |
 
-Dicas:
-- Não troque de aba nem bloqueie a tela durante a espera: isso **pausa** o cronômetro.
-- Para mostrar a pontuação subindo é preciso estar fisicamente num dos pontos. O mais prático é o centro (Catedral, Museu Campos Gerais, Parque Ambiental e Estação Saudade ficam a poucos quarteirões).
-- Você pode reaproveitar trechos de `videos/game-over.mp4` (Atividade 2).
+Dica: você pode reaproveitar trechos de `videos/game-over.mp4` (Atividade 2).
